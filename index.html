@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Clapperboard">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Digital Clapperboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Barlow+Condensed:wght@400;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root { --black: #0a0a0a; --white: #f0f0f0; --stripe-w: 28px; --accent: #ff3b30; --tc-green: #00ff88; }
+  html, body { width: 100%; height: 100%; background: #111; display: flex; align-items: center; justify-content: center; font-family: 'Share Tech Mono', monospace; overflow: hidden; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .board-wrap { width: min(98vw, 680px); display: flex; flex-direction: column; gap: 0; filter: drop-shadow(0 8px 40px rgba(0,0,0,0.9)); }
+  .clapper-outer { position: relative; height: 90px; background: var(--black); border: 3px solid var(--white); border-bottom: none; border-radius: 4px 4px 0 0; overflow: hidden; cursor: pointer; transform-origin: top center; }
+  .clapper-outer.clap { animation: clap 0.35s ease; }
+  @keyframes clap { 0% { transform: rotate(0deg); } 30% { transform: rotate(-18deg); } 60% { transform: rotate(-5deg); } 80% { transform: rotate(-14deg); } 100% { transform: rotate(0deg); } }
+  .stripes { position: absolute; inset: 0; display: flex; }
+  .stripe { flex: 1; background: repeating-linear-gradient(120deg, var(--black) 0px, var(--black) var(--stripe-w), var(--white) var(--stripe-w), var(--white) calc(var(--stripe-w)*2)); }
+  .stripe.right { background: repeating-linear-gradient(-120deg, var(--black) 0px, var(--black) var(--stripe-w), var(--white) var(--stripe-w), var(--white) calc(var(--stripe-w)*2)); }
+  .clapper-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
+  .clap-info { display: flex; align-items: center; gap: 10px; font-family: 'Bebas Neue', cursive; font-size: clamp(18px, 4vw, 26px); color: var(--white); letter-spacing: 0.1em; }
+  .clap-sep { color: #666; }
+  .clap-tap-hint { position: absolute; right: 14px; bottom: 8px; font-size: 10px; color: #555; letter-spacing: 0.1em; }
+  .body { background: var(--black); border: 3px solid var(--white); border-top: 2px solid #333; border-radius: 0 0 6px 6px; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .tc-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .tc-display { font-family: 'Share Tech Mono', monospace; font-size: clamp(38px, 11vw, 88px); color: var(--tc-green); letter-spacing: 0.05em; text-shadow: 0 0 20px rgba(0,255,136,0.5); line-height: 1; user-select: none; }
+  .tc-display.realtime { color: #4fc3f7; text-shadow: 0 0 20px rgba(79,195,247,0.5); }
+  .tc-display.stopped { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.4); }
+  .tc-display.ltc-lock { color: #ff9800; text-shadow: 0 0 20px rgba(255,152,0,0.6); }
+  .tc-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; width: 100%; }
+  .tc-row2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; width: 100%; }
+  .tc-btn { background: transparent; border: 1px solid #444; color: #888; font-family: 'Share Tech Mono', monospace; font-size: 10px; padding: 6px 2px; border-radius: 3px; cursor: pointer; letter-spacing: 0.03em; transition: all 0.15s; text-align: center; white-space: nowrap; touch-action: manipulation; }
+  .tc-btn:active { opacity: 0.7; }
+  .tc-btn.active { border-color: var(--tc-green); color: var(--tc-green); }
+  .tc-btn.realtime-mode.active { border-color: #4fc3f7; color: #4fc3f7; }
+  .tc-btn.ltc-btn { border-color: #ff9800; color: #ff9800; }
+  .tc-btn.ltc-btn.ltc-active { border-color: #ff9800; color: #111; background: #ff9800; animation: ltcPulse 1s ease-in-out infinite; }
+  @keyframes ltcPulse { 0%,100% { box-shadow: 0 0 6px rgba(255,152,0,0.6); } 50% { box-shadow: 0 0 16px rgba(255,152,0,1); } }
+  .fps-select { background: transparent; border: 1px solid #444; color: #666; font-family: 'Share Tech Mono', monospace; font-size: 10px; padding: 6px 2px; border-radius: 3px; cursor: pointer; outline: none; width: 100%; }
+  option { background: #111; }
+  .tc-status { font-size: 10px; color: #444; letter-spacing: 0.12em; text-transform: uppercase; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, #333, transparent); }
+  .sct-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .sct-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 1px solid #2a2a2a; border-radius: 4px; padding: 8px 4px 6px; background: #0f0f0f; transition: border-color 0.15s; }
+  .sct-cell:focus-within { border-color: #555; }
+  .sct-label { font-size: 9px; color: #555; letter-spacing: 0.2em; text-transform: uppercase; }
+  .sct-value { font-family: 'Bebas Neue', cursive; font-size: clamp(28px, 7vw, 48px); color: var(--white); line-height: 1; text-align: center; background: transparent; border: none; outline: none; width: 100%; }
+  .sct-stepper { display: flex; gap: 5px; }
+  .step-btn { width: 32px; height: 26px; background: #1a1a1a; border: 1px solid #333; color: #666; font-size: 16px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; touch-action: manipulation; }
+  .step-btn:active { background: #333; color: var(--white); }
+  .bottom-row { display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; color: #2a2a2a; letter-spacing: 0.3em; text-transform: uppercase; }
+  .reset-btn { font-family: 'Share Tech Mono', monospace; font-size: 10px; background: transparent; border: 1px solid #2a2a2a; color: #444; padding: 4px 10px; border-radius: 3px; cursor: pointer; touch-action: manipulation; }
+  .reset-btn:active { border-color: var(--accent); color: var(--accent); }
+  .flash-overlay { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 999; transition: opacity 0.05s; }
+  .flash-overlay.flash { opacity: 0.6; transition: opacity 0s; }
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-box { background: #111; border: 1px solid #444; border-radius: 8px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; min-width: 260px; }
+  .modal-title { font-family: 'Bebas Neue', cursive; font-size: 20px; color: #f0f0f0; letter-spacing: 0.1em; }
+  .modal-hint { font-size: 10px; color: #555; letter-spacing: 0.12em; }
+  .modal-input { font-family: 'Share Tech Mono', monospace; font-size: 26px; color: var(--tc-green); background: #0a0a0a; border: 1px solid #333; border-radius: 4px; padding: 8px 10px; outline: none; width: 100%; text-align: center; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-btn { font-family: 'Share Tech Mono', monospace; font-size: 11px; background: transparent; border: 1px solid #333; color: #666; padding: 6px 14px; border-radius: 4px; cursor: pointer; }
+  .modal-btn.ok { border-color: var(--tc-green); color: var(--tc-green); }
+  @media (orientation: landscape) and (max-height: 480px) { .body { padding: 8px 12px 10px; gap: 6px; } .tc-display { font-size: clamp(32px, 8vw, 60px); } .sct-value { font-size: clamp(24px, 5.5vw, 38px); } .clapper-outer { height: 65px; } }
+</style>
+</head>
+<body>
+<div class="flash-overlay" id="flashEl"></div>
+<div class="modal-bg" id="tcModal">
+  <div class="modal-box">
+    <div class="modal-title">SET TIMECODE</div>
+    <div class="modal-hint">HH:MM:SS:FF</div>
+    <input class="modal-input" id="tcSetInput" type="text" placeholder="00:00:00:00" maxlength="11" onkeydown="if(event.key==='Enter')applyTCSet()">
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeTCModal()">CANCEL</button>
+      <button class="modal-btn ok" onclick="applyTCSet()">APPLY</button>
+    </div>
+  </div>
+</div>
+<div class="board-wrap">
+  <div class="clapper-outer" id="clapperEl" onclick="doClap()">
+    <div class="stripes"><div class="stripe"></div><div class="stripe right"></div></div>
+    <div class="clapper-label">
+      <div class="clap-info">
+        <span id="clapScene">1</span><span class="clap-sep">/</span>
+        <span id="clapCut">001</span><span class="clap-sep">/</span>
+        <span id="clapTake">T1</span>
+      </div>
+    </div>
+    <div class="clap-tap-hint">TAP TO CLAP</div>
+  </div>
+  <div class="body">
+    <div class="tc-section">
+      <div class="tc-display stopped" id="tcDisplay">00:00:00:00</div>
+      <div class="tc-controls">
+        <button class="tc-btn" id="btnStart" onclick="tcStart()">▶ START</button>
+        <button class="tc-btn" id="btnStop" onclick="tcStop()">■ STOP</button>
+        <button class="tc-btn" id="btnReset" onclick="tcReset()">↺ RESET</button>
+        <button class="tc-btn" id="btnSet" onclick="openTCSet()">SET TC</button>
+      </div>
+      <div class="tc-row2">
+        <select class="fps-select" id="fpsSelect" onchange="changeFps()">
+          <option value="24">24fps</option>
+          <option value="25">25fps</option>
+          <option value="2997">29.97fps</option>
+          <option value="30" selected>30fps</option>
+        </select>
+        <button class="tc-btn realtime-mode" id="btnMode" onclick="switchMode()">REALTIME</button>
+        <button class="tc-btn ltc-btn" id="btnLTC" onclick="startLTC()">⦿ LTC IN</button>
+      </div>
+      <div class="tc-status" id="tcStatus">FREE RUN — STOPPED</div>
+    </div>
+    <div class="divider"></div>
+    <div class="sct-row">
+      <div class="sct-cell">
+        <div class="sct-label">SCENE</div>
+        <input class="sct-value" id="sceneVal" value="1" maxlength="5" oninput="syncClapper()">
+        <div class="sct-stepper">
+          <button class="step-btn" onclick="stepNum('sceneVal',-1)">−</button>
+          <button class="step-btn" onclick="stepNum('sceneVal',1)">+</button>
+        </div>
+      </div>
+      <div class="sct-cell">
+        <div class="sct-label">CUT</div>
+        <input class="sct-value" id="cutVal" value="001" maxlength="5" oninput="syncClapper()">
+        <div class="sct-stepper">
+          <button class="step-btn" onclick="stepNum('cutVal',-1)">−</button>
+          <button class="step-btn" onclick="stepNum('cutVal',1)">+</button>
+        </div>
+      </div>
+      <div class="sct-cell">
+        <div class="sct-label">TAKE</div>
+        <input class="sct-value" id="takeVal" value="1" maxlength="4" oninput="syncClapper()">
+        <div class="sct-stepper">
+          <button class="step-btn" onclick="stepNum('takeVal',-1)">−</button>
+          <button class="step-btn" onclick="stepNum('takeVal',1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-row">
+      <div class="brand">DIGITAL CLAPPERBOARD</div>
+      <button class="reset-btn" onclick="resetAll()">RESET ALL</button>
+    </div>
+  </div>
+</div>
+<script>
+let mode='freerun',running=false,startTime=null,elapsed=0,rafId=null;
+function getFps(){const v=document.getElementById('fpsSelect').value;return v==='2997'?29.97:parseInt(v);}
+function pad(n){return String(Math.floor(n)).padStart(2,'0');}
+function msToTC(ms){const f=getFps(),rf=Math.round(f),totalF=Math.floor(ms/1000*f);return`${pad(Math.floor(totalF/rf/3600))}:${pad(Math.floor(totalF/rf/60)%60)}:${pad(Math.floor(totalF/rf)%60)}:${pad(totalF%rf)}`;}
+function nowToTC(){const now=new Date(),f=getFps();return`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}:${pad(Math.floor(now.getMilliseconds()/1000*f))}`;}
+function updateDisplay(){const el=document.getElementById('tcDisplay'),st=document.getElementById('tcStatus');if(mode==='realtime'){el.textContent=nowToTC();el.className='tc-display realtime';st.textContent='REALTIME CLOCK';rafId=requestAnimationFrame(updateDisplay);return;}if(running){elapsed=Date.now()-startTime;el.textContent=msToTC(elapsed);el.className='tc-display';st.textContent='FREE RUN — RUNNING';rafId=requestAnimationFrame(updateDisplay);}else{el.textContent=msToTC(elapsed);el.className='tc-display stopped';st.textContent=ltcActive?'LTC — LISTENING...':'FREE RUN — STOPPED';}}
+function tcStart(){if(mode==='realtime'||running)return;running=true;startTime=Date.now()-elapsed;document.getElementById('btnStart').classList.add('active');document.getElementById('btnStop').classList.remove('active');requestAnimationFrame(updateDisplay);}
+function tcStop(){if(mode==='realtime')return;running=false;cancelAnimationFrame(rafId);document.getElementById('btnStop').classList.add('active');document.getElementById('btnStart').classList.remove('active');updateDisplay();}
+function tcReset(){running=false;elapsed=0;cancelAnimationFrame(rafId);document.getElementById('btnStart').classList.remove('active');document.getElementById('btnStop').classList.remove('active');updateDisplay();}
+function switchMode(){cancelAnimationFrame(rafId);if(mode==='freerun'){mode='realtime';running=false;document.getElementById('btnMode').classList.add('active');requestAnimationFrame(updateDisplay);}else{mode='freerun';document.getElementById('btnMode').classList.remove('active');updateDisplay();}}
+function changeFps(){if(!running&&mode==='freerun')updateDisplay();}
+function doClap(){const el=document.getElementById('clapperEl'),fl=document.getElementById('flashEl');el.classList.remove('clap');void el.offsetWidth;el.classList.add('clap');fl.classList.add('flash');setTimeout(()=>fl.classList.remove('flash'),80);if(mode==='freerun'&&!running)tcStart();el.addEventListener('animationend',()=>el.classList.remove('clap'),{once:true});}
+function syncClapper(){document.getElementById('clapScene').textContent=document.getElementById('sceneVal').value||'—';document.getElementById('clapCut').textContent=document.getElementById('cutVal').value||'—';document.getElementById('clapTake').textContent='T'+(document.getElementById('takeVal').value||'1');}
+function stepNum(id,dir){const el=document.getElementById(id);let n=parseInt(el.value)||1;n=Math.max(1,n+dir);el.value=id==='cutVal'?String(n).padStart(3,'0'):String(n);syncClapper();}
+function resetAll(){document.getElementById('sceneVal').value='1';document.getElementById('cutVal').value='001';document.getElementById('takeVal').value='1';syncClapper();tcReset();}
+function openTCSet(){if(running||mode==='realtime')return;document.getElementById('tcSetInput').value=msToTC(elapsed);document.getElementById('tcModal').style.display='flex';setTimeout(()=>{document.getElementById('tcSetInput').focus();document.getElementById('tcSetInput').select();},100);}
+function closeTCModal(){document.getElementById('tcModal').style.display='none';}
+function applyTCSet(){const parts=document.getElementById('tcSetInput').value.trim().split(':').map(Number);if(parts.length!==4||parts.some(isNaN)){closeTCModal();return;}const[hh,mm,ss,ff]=parts;elapsed=((hh*3600+mm*60+ss)*Math.round(getFps())+ff)/getFps()*1000;closeTCModal();updateDisplay();}
+let ltcActive=false,audioCtx=null,analyserNode=null,ltcSource=null,ltcRaf=null,ltcStream=null,ltcDecoder=null,ltcLockCount=0;
+class LTCDecoder{constructor(sr,fps){this.halfPeriod=sr/fps/80/2;this.bits=[];this.lastZC=0;this.lastSign=0;this.halfCount=0;}process(samples){const thr=0.02;for(let i=0;i<samples.length;i++){const sign=samples[i]>thr?1:samples[i]<-thr?-1:0;if(sign!==0&&sign!==this.lastSign){const interval=i-this.lastZC;this.lastZC=i;this.lastSign=sign;const hp=this.halfPeriod;if(interval<hp*0.6)continue;if(interval<hp*1.5){this.halfCount++;if(this.halfCount===2){this.halfCount=0;this.bits.push(1);}}else if(interval<hp*2.5){this.halfCount=0;this.bits.push(0);}else{this.bits=[];this.halfCount=0;continue;}if(this.bits.length>80)this.bits.shift();if(this.bits.length===80){const tc=this.decode();if(tc)return tc;}}}return null;}decode(){let sync=0;for(let i=0;i<16;i++)sync|=(this.bits[64+i]<<i);if(sync!==0xBFFC)return null;const b=(s,l)=>{let v=0;for(let i=0;i<l;i++)v|=(this.bits[s+i]<<i);return v;};const ff=b(0,4)+b(8,2)*10,ss=b(16,4)+b(24,3)*10,mm=b(32,4)+b(40,3)*10,hh=b(48,4)+b(56,2)*10;if(ff>29||ss>59||mm>59||hh>23)return null;return{hh,mm,ss,ff};}}
+async function startLTC(){if(ltcActive){stopLTC();return;}try{ltcStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});audioCtx=new(window.AudioContext||window.webkitAudioContext)();ltcSource=audioCtx.createMediaStreamSource(ltcStream);analyserNode=audioCtx.createAnalyser();analyserNode.fftSize=2048;ltcSource.connect(analyserNode);ltcDecoder=new LTCDecoder(audioCtx.sampleRate,getFps());ltcActive=true;ltcLockCount=0;document.getElementById('btnLTC').classList.add('ltc-active');document.getElementById('tcStatus').textContent='LTC — LISTENING...';const buf=new Float32Array(analyserNode.fftSize);function tick(){if(!ltcActive)return;analyserNode.getFloatTimeDomainData(buf);const tc=ltcDecoder.process(buf);if(tc){ltcLockCount++;if(ltcLockCount>=2){const f=getFps();elapsed=((tc.hh*3600+tc.mm*60+tc.ss)*Math.round(f)+tc.ff)/f*1000;if(!running){running=true;startTime=Date.now()-elapsed;document.getElementById('btnStart').classList.add('active');}else{startTime=Date.now()-elapsed;}document.getElementById('tcDisplay').className='tc-display ltc-lock';document.getElementById('tcStatus').textContent=`LTC — LOCKED ${pad(tc.hh)}:${pad(tc.mm)}:${pad(tc.ss)}:${pad(tc.ff)}`;}}else{ltcLockCount=0;}ltcRaf=requestAnimationFrame(tick);}tick();if(mode==='freerun')requestAnimationFrame(updateDisplay);}catch(e){document.getElementById('tcStatus').textContent='LTC — MIC ERROR';}}
+function stopLTC(){ltcActive=false;ltcLockCount=0;if(ltcRaf)cancelAnimationFrame(ltcRaf);if(ltcStream)ltcStream.getTracks().forEach(t=>t.stop());if(audioCtx)audioCtx.close();audioCtx=null;ltcStream=null;document.getElementById('btnLTC').classList.remove('ltc-active');document.getElementById('tcStatus').textContent='FREE RUN — STOPPED';}
+document.addEventListener('touchend',e=>{if(e.target.closest('.clapper-outer'))e.preventDefault();},{passive:false});
+if('serviceWorker'in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+updateDisplay();syncClapper();
+</script>
+</body>
+</html>
